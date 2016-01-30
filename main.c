@@ -1,23 +1,12 @@
 #include <xc.h>
 
 // Set bits of configutation
-/*
 #pragma config WDTE    = OFF
 #pragma config PWRTE   = ON   // Waiting rated voltage
 #pragma config CP      = OFF
 #pragma config BOREN   = OFF
 #pragma config LVP     = OFF
 #pragma config MCLRE   = OFF
-#pragma config CPD     = OFF
-#pragma config FOSC    = XT   // High-speed resonator
-*/
-
-#pragma config WDTE    = OFF
-#pragma config PWRTE   = ON   // Waiting rated voltage
-#pragma config CP      = OFF
-#pragma config BOREN   = OFF
-#pragma config LVP     = OFF
-#pragma config MCLRE   = ON
 #pragma config CPD     = OFF
 #pragma config FOSC    = XT   // High-speed resonator
 
@@ -45,6 +34,12 @@
 #define DS_COM_SKIP_ROM     0xcc
 #define DS_COM_CONVERT_TEMP 0x44
 #define DS_COM_READ_MEMORY  0xbe
+#define DS_COM_WRITE_MEMORY 0x4e
+
+
+#define DEFAULT_TH 0x4b
+#define DEFAULT_TL 0x46
+#define RESOLUTION_9BIT 0x1f
 
 // Pin of DS18B20
 #define DS_DATA_PIN RA4
@@ -54,41 +49,27 @@
 #define SIZE_RAM 9
 #define SIGN_MINUS 1
 //
-//		   A
-//		 _____
-//		|	  |
-//	  F	|	  | B
-//		|  G  |
-//		 -----
-//		|	  |
-//	  E	|	  | C
-//		|_____| o DP
-//		   D
-//
-
-
-//
-//	+-----------------------------------------------------------------------+
-//	|  Bit  |   7   |   6   |   5   |   4   |   3   |   2   |   1   |   0   |
-//	+-----------------------------------------------------------------------+  
-//	| TRISA |	-   |   -   |   -   |  RA4  |  RA3  |  RA2  |  RA1  |   RA0 |
-//	| PORTA |       |       |       |       |       |       |       |       |
-//	+-----------------------------------------------------------------------+
-//	| TRISB |  RB7  |  RB6  |  RB5  |  RB4  |  RB3  |  RB2  |  RB1  |   RB0 |
-//  | PORTB |       |       |       |       |       |       |       |       |
-//	+-----------------------------------------------------------------------+
+//         A
+//       _____
+//      |     |
+//    F |     | B
+//      |  G  |
+//       -----
+//      |     |
+//    E |     | C
+//      |_____| o DP
+//         D
 //
 
 
 void first_init()
 {
-	
+    
     CMCON = 0x07;         // disable comparator
     
     TRISA = 0b11000000;   // set i/o of porta
     TRISB = 0;            // set i/o of protb
 
-    // 
     PORTA = 0xff;
     PORTB = 0xff;
 }
@@ -96,6 +77,7 @@ void first_init()
 
 unsigned char read_byte()
 {
+
     unsigned char byte;
     int i;
 
@@ -141,202 +123,6 @@ void send_byte(unsigned char command)
 }
 
 
-void output_on_7seg(int integer_part, int fractional_part, int sign)
-{
-	int num1 = 0;
-	int num2 = 0;
-    int values[10] = {36, 231, 76, 69, 135, 21, 20, 103, 4, 5};
-    int values_with_dot[10] = {32 ,227, 72, 65, 131, 17, 16, 99, 0, 1};
-    int minus = 223;
-    int i, count;
-    //PORTA = 0;
-    //PORTA = 0b10110000;
-    //PORTA = 0b01000000;
-    //PORTB = 0xff;  // Disable all segments
-
-    num1 = integer_part / 10;
-    num2 = integer_part % 10;
-
-    if (sign != -1) {
-        for (i = 0, count = 0; i < 10000; i++) {
-            //PORTA = 0b01000000; // disable all segments
-            PORTA = 0;
-
-            if (count == 0) {
-                // output sign
-                SEG7_ANOD12 = 0x01;
-                PORTB = minus;
-            }
-
-            if (count == 1) {
-                SEG7_ANOD9 = 0x01;
-                PORTB = values[num1];
-            }
-
-            if (count == 2) {
-                SEG7_ANOD8 = 0x01;
-                PORTB = values_with_dot[num2];
-            }
-
-            if (count == 3) {
-                SEG7_ANOD6 = 0x01;
-                PORTB = values[fractional_part];
-            }
-
-            count++;
-            if (count == 4) {
-                count = 0;
-            }
-
-            //__delay_cycles(100000); 
-            __delay_us(300);
-        }
-    } else {
-        for (i = 0, count = 0; i < 10000; i++) {
-            //PORTA = 0b01000000; // disable all segments
-            PORTA = 0;
-
-            if (count == 0) {
-                SEG7_ANOD9 = 0x01;
-                PORTB = values[num1];
-            }
-
-            if (count == 1) {
-                SEG7_ANOD8 = 0x01;
-                PORTB = values_with_dot[num2];
-            }
-
-            if (count == 2) {
-                SEG7_ANOD6 = 0x01;
-                PORTB = values[fractional_part];
-            }
-
-            count++;
-            if (count == 3) {
-                count = 0;
-            }
-
-            //__delay_cycles(100000); 
-            __delay_us(300);
-        }
-        //PORTA = 0;      
-
-    }
-}
-
-
-
-void output(int integer_part, int fractional_part, int sign)
-{
-    int num1 = 0;
-    int num2 = 0;
-    int values[10] = {36, 231, 76, 69, 135, 21, 20, 103, 4, 5};
-    int values_with_dot[10] = {32 ,227, 72, 65, 131, 17, 16, 99, 0, 1};
-    int minus = 223;
-    int i, count;
-    //PORTA = 0;
-    //PORTA = 0b10110000;
-    //PORTA = 0b01000000;
-    //PORTB = 0xff;  // Disable all segments
-
-    num1 = integer_part / 10;
-    num2 = integer_part % 10;
-
-    if (sign != -1) {
-        for (i = 0, count = 0; i < 3; i++) {
-            //PORTA = 0b01000000; // disable all segments
-            PORTA = 0;
-
-            if (count == 0) {
-                // output sign
-                SEG7_ANOD12 = 0x01;
-                PORTB = minus;
-            }
-
-            if (count == 1) {
-                SEG7_ANOD9 = 0x01;
-                PORTB = values[num1];
-            }
-
-            if (count == 2) {
-                SEG7_ANOD8 = 0x01;
-                PORTB = values_with_dot[num2];
-            }
-
-            if (count == 3) {
-                SEG7_ANOD6 = 0x01;
-                PORTB = values[fractional_part];
-            }
-
-            count++;
-            if (count == 4) {
-                count = 0;
-            }
-
-            //__delay_cycles(100000); 
-            __delay_us(100);
-        }
-    } else {
-        for (i = 0, count = 0; i < 3; i++) {
-            //PORTA = 0b01000000; // disable all segments
-            PORTA = 0;
-
-            if (count == 0) {
-                SEG7_ANOD9 = 0x01;
-                PORTB = values[num1];
-            }
-
-            if (count == 1) {
-                SEG7_ANOD8 = 0x01;
-                PORTB = values_with_dot[num2];
-            }
-
-            if (count == 2) {
-                SEG7_ANOD6 = 0x01;
-                PORTB = values[fractional_part];
-            }
-
-            count++;
-            if (count == 3) {
-                count = 0;
-            }
-
-            //__delay_cycles(100000); 
-            __delay_us(100);
-        }
-        //PORTA = 0;      
-
-    }
-}
-
-
-/*
-// OK
-void init_dev()
-{
-    // Set RA4 on output
-    TRISA = TRISA & (~(0x01 << 4));
-    // Send 0 on RA4
-    PORTA = PORTA & (~(0x01 << 4));
-    __delay_us(480);
-
-    // Set RA4 on input
-    TRISA = TRISA | (0x01 << 4);
-    // Send 0 on RA4
-    PORTA = PORTA & (~(0x01 << 4));
-    __delay_us(70);
-
-    // if has not been received presence signal
-    
-    if ((PORTA >> 4) & 0x01) {
-        output_on_7seg(0, -1000, -1000);
-    } else {
-        output_on_7seg(11, -1000, -1000);
-    }
-    __delay_us(450);
-}
-*/
-
 void show_off()
 {      
     int F = 30;
@@ -344,7 +130,6 @@ void show_off()
     int i, count;
 
     for (i = 0, count = 0; i < 10000; i++) {
-        //PORTA = 0b01000000; // disable all segments
         PORTA = 0;
 
         if (count == 0) {
@@ -366,8 +151,7 @@ void show_off()
         if (count == 3) {
             count = 0;
         }
-
-        //__delay_cycles(100000); 
+ 
         __delay_us(300);
     }
     PORTA = 0;
@@ -396,47 +180,114 @@ void init_dev()
 }
 
 
-void show(int integer_part, int fractional_part, int sign)
+
+int num_segment = 0;
+unsigned int temperature_int1 = 0, temperature_int2 = 0, temperature_float = 0;
+int is_sign = 0;
+
+void output_on_7seg(int number, int num_segment)
 {
-    if (sign) {
-        output(integer_part, fractional_part, 1);
-    } else {
-        output(integer_part, fractional_part, -1);
+    int num1 = 0;
+    int num2 = 0;
+    int values[10] = {36, 231, 76, 69, 135, 21, 20, 103, 4, 5};
+    int values_with_dot[10] = {32 ,227, 72, 65, 131, 17, 16, 99, 0, 1};
+    int minus = 223;
+    int i, count;
+
+    PORTA = 0;
+
+    switch (num_segment) {
+        case 1:
+            // output sign
+            if (number == 1) {
+                SEG7_ANOD12 = 0x01;
+                PORTB = minus;
+            }
+            break;
+        case 2:
+            SEG7_ANOD9 = 0x01;
+            PORTB = values[number];
+            break;
+        case 3:
+            SEG7_ANOD8 = 0x01;
+            PORTB = values_with_dot[number];
+            break;
+        case 4:
+            SEG7_ANOD6 = 0x01;
+            PORTB = values[number];
+            break;
     }
 }
 
+
+
+// interrupt on the timer
+void interrupt handle_tmr0()
+{
+    output_on_7seg(temperature_int1, 2);
+    if (T0IF) { // if TMR0 overflow
+        num_segment++;
+
+        switch (num_segment) {
+            case 1:
+                output_on_7seg(is_sign, 1);
+                break;
+            case 2:
+                output_on_7seg(temperature_int1, 2);
+                break;
+            case 3:
+                output_on_7seg(temperature_int2, 3);
+                break;
+            case 4:
+                output_on_7seg(temperature_float, 4);
+                num_segment = 0;
+                break;
+        }
+
+        TMR0 = 100;
+        T0IF = 0;
+    }
+}
+
+
 int main()
 {
-	int i, j;
-	unsigned char RAM[9] = {0};
-	unsigned int temperature_int = 0, temperature_float = 0, tmp = 0;
-    int is_sign = 0;
+    INTCON = 0;
+
+    int i, j;
+    int RAM[9] = {0};
+    int temp_int = 0;
+    int tmp = 0;
+
     first_init();
     
     unsigned char byte = 0x00;
     // Set resolution in 9 bit (0.5)
     init_dev();
     send_byte(DS_COM_SKIP_ROM);
-    send_byte(0x4e);
+    send_byte(DS_COM_WRITE_MEMORY);
+    
     // Set TH and TL in default state
-    send_byte(0x4b);
-    send_byte(0x46);
+    send_byte(DEFAULT_TH);
+    send_byte(DEFAULT_TL);
+
     // Set resolution in 9 bit
-    send_byte(0x1f);
+    send_byte(RESOLUTION_9BIT);
 
-
+    
+    OPTION_REG=0b00000000;
+   
     while (1) {
+        INTCON = 0;
+        
         init_dev();
         send_byte(DS_COM_SKIP_ROM);
         send_byte(DS_COM_CONVERT_TEMP);
 
-        show(temperature_int, temperature_float, is_sign);
-
-        //while (!read_byte());
         //__delay_us(94);
+        while (TRISA4 == 0);
 
         init_dev();
-
         send_byte(DS_COM_SKIP_ROM);
         send_byte(DS_COM_READ_MEMORY);
 
@@ -444,11 +295,7 @@ int main()
             RAM[i] = read_byte();
         }
 
-        show(temperature_int, temperature_float, is_sign);
-
-        is_sign = 0;
-
-        // if minus        
+        // if minus     
         if ((RAM[1] & 128 ) != 0) {
             is_sign = 1;
 
@@ -457,21 +304,20 @@ int main()
 
             RAM[0] = tmp;
             RAM[1] = tmp >> 8;
-        } 
-
-        temperature_int = ((RAM[1] & 7) << 4) | (RAM[0] >> 4);
-        temperature_float = (RAM[0] & 15);
-        temperature_float = (temperature_float * 0.0625) * 10;
-
-        if (is_sign) {
-            output_on_7seg(temperature_int, temperature_float, 1);
         } else {
-            output_on_7seg(temperature_int, temperature_float, -1);
+            is_sign = 0;
         }
-/*        
-        is_sign = 0;
-        temperature_float = 0;
-        temperature_int = 0;
-*/
-	}
+
+        // get integer part of temperature
+        temp_int = ((RAM[1] & 7) << 4) | (RAM[0] >> 4);
+        temperature_int1 = temp_int / 10;
+        temperature_int2 = temp_int % 10;
+
+        temperature_float = (RAM[0] & 15);
+        temperature_float = (unsigned int)(temperature_float * 0.5);
+
+        INTCON = 0b10100000;
+        __delay_us(1000000);
+        
+    }
 }
